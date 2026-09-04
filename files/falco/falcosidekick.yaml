@@ -1,8 +1,8 @@
-# Falcosidekick configuration for EDA webhook integration
+# Falcosidekick configuration for EDA event stream integration
 #
 # Deploy to /etc/falcosidekick/config.yaml on the Falco host.
 # Falcosidekick receives Falco alerts and forwards them as
-# structured JSON webhooks to the EDA controller.
+# structured JSON to the AAP EDA event stream endpoint.
 
 debug: false
 customfields:
@@ -10,17 +10,18 @@ customfields:
   managed_by: falco_mitre_ics_enforce
 
 outputs:
-  # Primary: EDA controller webhook
+  # Primary: AAP EDA event stream endpoint
   webhook:
-    address: "http://eda-controller:5000/webhook"
+    address: "https://aap.nostromo.io:443/eda-event-streams/api/eda/v1/external_event_stream/3ed6a9a5-587c-454b-b4cd-7859842c9bae/post/"
     method: POST
     minimumpriority: warning
     checkcert: false
     headers:
       Content-Type: application/json
-      X-Source: falcosidekick
+      Authorization: "{{ falcosidekick_eda_token }}"
     customHeaders:
       X-ATT-CK-Domain: ics
+      X-Source: falcosidekick
 
   # Optional: stdout for debugging
   stdout:

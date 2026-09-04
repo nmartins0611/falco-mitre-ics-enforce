@@ -2,18 +2,20 @@
 # EDA Rulebook: Falco + Insights enforcement loop
 #
 # Sources:
-#   1. Falcosidekick webhook — runtime threat detection with ATT&CK tags
+#   1. Falcosidekick event stream — runtime threat detection with ATT&CK tags
 #   2. Red Hat Insights (future) — compliance posture drift events
 #
-# When running as an AAP EDA activation, run_job_template is used
-# to dispatch through the controller (requires awx_token).
+# When running as an AAP EDA activation, run_job_template dispatches
+# through the controller (requires AAP credential on the activation).
+#
+# The __SOURCE_1 placeholder is mapped to the Falcosidekick event stream
+# in the activation's source_mappings configuration.
 
 - name: FALCO_MITRE enforcement loop
   hosts: all
   sources:
-    - ansible.eda.webhook:
-        host: 0.0.0.0
-        port: 5000
+    - ansible.eda.pg_listener:
+        name: __SOURCE_1
 
   rules:
     # ── Falcosidekick: critical or error Falco alert with ATT&CK tags ──
