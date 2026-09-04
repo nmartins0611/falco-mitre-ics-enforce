@@ -1,0 +1,20 @@
+---
+# Falco configuration
+falco_version: "0.39.2"
+falco_driver: kmod
+falco_rules_dir: /etc/falco/rules.d
+
+# Falcosidekick configuration
+falcosidekick_install: true
+falcosidekick_version: "2.30.0"
+falcosidekick_config_dir: /etc/falcosidekick
+
+# EDA event stream endpoint
+falcosidekick_eda_url: "https://aap.nostromo.io:443/eda-event-streams/api/eda/v1/external_event_stream/3ed6a9a5-587c-454b-b4cd-7859842c9bae/post/"
+falcosidekick_eda_token: "CHANGEME"
+falcosidekick_min_priority: warning
+falcosidekick_verify_ssl: false
+
+# Custom Falco rules to deploy (list of files from files/falco/)
+falco_custom_rules:
+  - t1059_shell_detection.yaml

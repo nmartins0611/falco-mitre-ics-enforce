@@ -1,0 +1,20 @@
+---
+# Deploy Falco + Falcosidekick to OT hosts
+#
+# This playbook installs Falco with syscall monitoring and Falcosidekick
+# configured to forward alerts to the AAP EDA event stream.
+#
+# Required variables:
+#   falcosidekick_eda_token: the bearer token for the EDA event stream
+#
+# Usage:
+#   ansible-playbook playbooks/deploy_falco.yml \
+#     -e falcosidekick_eda_token=<token>
+
+- name: Deploy Falco and Falcosidekick
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: falco_install

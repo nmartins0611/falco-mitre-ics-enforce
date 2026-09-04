@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  role_name: falco_install
+  namespace: falco_mitre
+  description: Install and configure Falco + Falcosidekick on RHEL hosts
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+  galaxy_tags:
+    - falco
+    - security
+    - runtime
+    - detection
+dependencies: []

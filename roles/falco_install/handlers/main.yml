@@ -1,0 +1,12 @@
+---
+- name: Restart falco
+  ansible.builtin.systemd:
+    name: falco-kmod
+    state: restarted
+    enabled: true
+
+- name: Restart falcosidekick
+  ansible.builtin.systemd:
+    name: falcosidekick
+    state: restarted
+    enabled: true

@@ -1,0 +1,145 @@
+---
+# Install Falco + Falcosidekick on RHEL hosts
+#
+# Falco detects runtime threats via syscall monitoring.
+# Falcosidekick forwards alerts to the AAP EDA event stream.
+
+- name: Import Falco GPG key
+  ansible.builtin.rpm_key:
+    key: https://falco.org/repo/falcosecurity-packages.asc
+    state: present
+
+- name: Add Falco RPM repository
+  ansible.builtin.yum_repository:
+    name: falcosecurity
+    description: Falco Security Repository
+    baseurl: https://download.falco.org/packages/rpm/
+    gpgcheck: true
+    gpgkey: https://falco.org/repo/falcosecurity-packages.asc
+    enabled: true
+
+- name: Install kernel headers for Falco driver
+  ansible.builtin.dnf:
+    name:
+      - "kernel-devel-{{ ansible_kernel }}"
+      - dkms
+    state: present
+
+- name: Install Falco
+  ansible.builtin.dnf:
+    name: "falco-{{ falco_version }}"
+    state: present
+  notify: Restart falco
+
+- name: Ensure Falco rules.d directory exists
+  ansible.builtin.file:
+    path: "{{ falco_rules_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Falco to use http_output for Falcosidekick
+  ansible.builtin.lineinfile:
+    path: /etc/falco/falco.yaml
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backrefs: "{{ item.backrefs | default(false) }}"
+  loop:
+    - regexp: '^(\s*)enabled:\s*(true|false)\s*$'
+      line: '  enabled: true'
+      backrefs: true
+    - regexp: '^(\s*)url:\s*.*$'
+      line: '  url: http://localhost:2801'
+      backrefs: true
+  notify: Restart falco
+
+- name: Deploy custom Falco rules
+  ansible.builtin.copy:
+    src: "falco/{{ item }}"
+    dest: "{{ falco_rules_dir }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ falco_custom_rules }}"
+  notify: Restart falco
+
+- name: Enable and start Falco (kmod driver)
+  ansible.builtin.systemd:
+    name: "falco-{{ falco_driver }}"
+    state: started
+    enabled: true
+
+# ── Falcosidekick ──
+
+- name: Install Falcosidekick
+  when: falcosidekick_install
+  block:
+    - name: Check if Falcosidekick binary exists
+      ansible.builtin.stat:
+        path: /usr/bin/falcosidekick
+      register: _falcosidekick_bin
+
+    - name: Download Falcosidekick binary
+      when: not _falcosidekick_bin.stat.exists
+      ansible.builtin.get_url:
+        url: "https://github.com/falcosecurity/falcosidekick/releases/download/{{ falcosidekick_version }}/falcosidekick_{{ falcosidekick_version }}_linux_amd64.tar.gz"
+        dest: /tmp/falcosidekick.tar.gz
+        mode: "0644"
+
+    - name: Extract Falcosidekick binary
+      when: not _falcosidekick_bin.stat.exists
+      ansible.builtin.unarchive:
+        src: /tmp/falcosidekick.tar.gz
+        dest: /usr/bin/
+        remote_src: true
+        extra_opts:
+          - --strip-components=0
+          - falcosidekick
+        creates: /usr/bin/falcosidekick
+
+    - name: Ensure Falcosidekick config directory exists
+      ansible.builtin.file:
+        path: "{{ falcosidekick_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Deploy Falcosidekick configuration
+      ansible.builtin.template:
+        src: falcosidekick.yaml.j2
+        dest: "{{ falcosidekick_config_dir }}/config.yaml"
+        owner: root
+        group: root
+        mode: "0640"
+      notify: Restart falcosidekick
+
+    - name: Deploy Falcosidekick systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/falcosidekick.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Falcosidekick - Falco alert forwarder
+          After=network-online.target falco-kmod.service
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/falcosidekick -c {{ falcosidekick_config_dir }}/config.yaml
+          Restart=on-failure
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart falcosidekick
+
+    - name: Enable and start Falcosidekick
+      ansible.builtin.systemd:
+        name: falcosidekick
+        state: started
+        enabled: true
+        daemon_reload: true
