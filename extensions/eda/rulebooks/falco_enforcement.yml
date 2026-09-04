@@ -5,8 +5,8 @@
 #   1. Falcosidekick webhook — runtime threat detection with ATT&CK tags
 #   2. Red Hat Insights (future) — compliance posture drift events
 #
-# Each rule extracts ATT&CK technique IDs from the event payload
-# and dispatches the enforcement playbook with those IDs.
+# When running as an AAP EDA activation, run_job_template is used
+# to dispatch through the controller (requires awx_token).
 
 - name: FALCO_MITRE enforcement loop
   hosts: all
@@ -25,15 +25,17 @@
         and event.payload.source is defined
         and event.payload.source == "syscalls"
       action:
-        run_playbook:
-          name: falco_mitre.ics_enforce.dispatcher
-          extra_vars:
-            technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
-            source_host: "{{ event.payload.hostname }}"
-            alert_rule: "{{ event.payload.rule }}"
-            alert_priority: "{{ event.payload.priority }}"
-            event_source: falcosidekick
-            alert_uuid: "{{ event.payload.uuid | default('unknown') }}"
+        run_job_template:
+          name: "FALCO_MITRE — Enforce"
+          organization: Default
+          job_args:
+            extra_vars:
+              technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
+              source_host: "{{ event.payload.hostname }}"
+              alert_rule: "{{ event.payload.rule }}"
+              alert_priority: "{{ event.payload.priority }}"
+              event_source: falcosidekick
+              alert_uuid: "{{ event.payload.uuid | default('unknown') }}"
 
     # ── Falcosidekick: warning-level — deploy detection rules only ──
     - name: Falco warning alert — deploy detection rules
@@ -44,15 +46,17 @@
         and event.payload.source is defined
         and event.payload.source == "syscalls"
       action:
-        run_playbook:
-          name: falco_mitre.ics_enforce.dispatcher
-          extra_vars:
-            technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
-            source_host: "{{ event.payload.hostname }}"
-            alert_rule: "{{ event.payload.rule }}"
-            alert_priority: "{{ event.payload.priority }}"
-            event_source: falcosidekick
-            enforce_mode: detect_only
+        run_job_template:
+          name: "FALCO_MITRE — Enforce"
+          organization: Default
+          job_args:
+            extra_vars:
+              technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
+              source_host: "{{ event.payload.hostname }}"
+              alert_rule: "{{ event.payload.rule }}"
+              alert_priority: "{{ event.payload.priority }}"
+              event_source: falcosidekick
+              enforce_mode: detect_only
 
     # ── Insights: compliance score drop ──
     - name: Insights compliance below threshold
@@ -62,13 +66,15 @@
         and event.payload.compliance_score is defined
         and event.payload.compliance_score < 80
       action:
-        run_playbook:
-          name: falco_mitre.ics_enforce.dispatcher
-          extra_vars:
-            technique_ids: "{{ event.payload.failed_rule_ids | default([]) }}"
-            source_host: "{{ event.payload.hostname }}"
-            event_source: insights
-            compliance_score: "{{ event.payload.compliance_score }}"
+        run_job_template:
+          name: "FALCO_MITRE — Enforce"
+          organization: Default
+          job_args:
+            extra_vars:
+              technique_ids: "{{ event.payload.failed_rule_ids | default([]) }}"
+              source_host: "{{ event.payload.hostname }}"
+              event_source: insights
+              compliance_score: "{{ event.payload.compliance_score }}"
 
     # ── Insights: new security advisory ──
     - name: Insights new critical advisory
@@ -78,10 +84,12 @@
         and event.payload.severity is defined
         and event.payload.severity in ["Critical", "Important"]
       action:
-        run_playbook:
-          name: falco_mitre.ics_enforce.dispatcher
-          extra_vars:
-            technique_ids: "{{ event.payload.cve_techniques | default([]) }}"
-            source_host: "{{ event.payload.hostname | default('all') }}"
-            event_source: insights_advisory
-            advisory_id: "{{ event.payload.advisory_id }}"
+        run_job_template:
+          name: "FALCO_MITRE — Enforce"
+          organization: Default
+          job_args:
+            extra_vars:
+              technique_ids: "{{ event.payload.cve_techniques | default([]) }}"
+              source_host: "{{ event.payload.hostname | default('all') }}"
+              event_source: insights_advisory
+              advisory_id: "{{ event.payload.advisory_id }}"
