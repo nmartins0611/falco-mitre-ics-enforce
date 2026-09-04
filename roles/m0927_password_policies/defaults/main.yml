@@ -1,0 +1,27 @@
+---
+# M0927 Password Policies — defaults
+#
+# All values are explicit. No hidden defaults.
+
+# pwquality — minimum password complexity
+m0927_pwquality_minlen: 14
+m0927_pwquality_dcredit: -1
+m0927_pwquality_ucredit: -1
+m0927_pwquality_lcredit: -1
+m0927_pwquality_ocredit: -1
+m0927_pwquality_minclass: 3
+m0927_pwquality_maxrepeat: 3
+m0927_pwquality_maxclassrepeat: 4
+m0927_pwquality_dictcheck: 1
+m0927_pwquality_enforcing: 1
+
+# pam_faillock — account lockout after failed attempts
+m0927_faillock_deny: 5
+m0927_faillock_fail_interval: 900
+m0927_faillock_unlock_time: 600
+
+# password aging (login.defs)
+m0927_pass_max_days: 90
+m0927_pass_min_days: 1
+m0927_pass_warn_age: 14
+m0927_pass_min_len: 14

@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: m0938_execution_prevention
+  author: Nuno Martins
+  description: >-
+    Enforce MITRE ATT&CK ICS M0938 (Execution Prevention) on RHEL OT hosts.
+    Deploys fapolicyd for application whitelisting and enforces SELinux.
+  license: Apache-2.0
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - security
+    - mitre
+    - ics
+    - fapolicyd
+    - selinux
+    - execution
+dependencies: []

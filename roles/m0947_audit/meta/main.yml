@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: m0947_audit
+  author: Nuno Martins
+  description: >-
+    Enforce MITRE ATT&CK ICS M0947 (Audit) on RHEL OT hosts.
+    Configures auditd rules, deploys AIDE for file integrity monitoring,
+    and manages Falco runtime detection rules.
+  license: Apache-2.0
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - security
+    - mitre
+    - ics
+    - auditd
+    - aide
+    - falco
+    - audit
+dependencies: []

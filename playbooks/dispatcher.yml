@@ -1,0 +1,99 @@
+---
+# Dispatcher playbook: resolve ATT&CK technique IDs to mitigation roles
+#
+# Called by EDA with extra_vars:
+#   technique_ids:  list of ATT&CK IDs (e.g. ["T1059", "T0886"])
+#   source_host:    hostname that triggered the alert
+#   event_source:   falcosidekick | insights | insights_advisory
+#   enforce_mode:   full (default) | detect_only
+#   alert_rule:     (optional) Falco rule name
+#   alert_priority: (optional) Falco priority level
+
+- name: Dispatch ATT&CK ICS mitigations
+  hosts: "{{ source_host | default('all') }}"
+  gather_facts: true
+
+  vars:
+    attack_map: "{{ lookup('file', attack_map_path) | from_yaml }}"
+    attack_map_path: "{{ playbook_dir }}/../data/attack_map.yml"
+    enforce_mode: "{{ enforce_mode | default('full') }}"
+    resolved_mitigations: []
+
+  tasks:
+    - name: Validate technique_ids is provided
+      ansible.builtin.assert:
+        that:
+          - technique_ids is defined
+          - technique_ids | length > 0
+        fail_msg: "No ATT&CK technique IDs provided. Nothing to dispatch."
+        quiet: true
+
+    - name: Log dispatch event
+      ansible.builtin.debug:
+        msg: >-
+          DISPATCH: source={{ event_source | default('unknown') }}
+          host={{ source_host | default('all') }}
+          techniques={{ technique_ids }}
+          mode={{ enforce_mode }}
+
+    - name: Resolve mitigations from attack_map
+      ansible.builtin.set_fact:
+        resolved_mitigations: >-
+          {{
+            technique_ids
+            | select('in', attack_map.techniques)
+            | map('extract', attack_map.techniques)
+            | selectattr('mitigations', 'defined')
+            | map(attribute='mitigations')
+            | flatten
+            | unique
+            | list
+          }}
+
+    - name: Log resolved mitigations
+      ansible.builtin.debug:
+        msg: >-
+          Resolved {{ resolved_mitigations | length }} mitigations
+          for techniques {{ technique_ids }}:
+          {{ resolved_mitigations | map(attribute='id') | list }}
+
+    - name: Run enforce roles
+      ansible.builtin.include_role:
+        name: "{{ mitigation.role_name }}"
+      loop: "{{ resolved_mitigations | selectattr('class', 'eq', 'enforce') | list }}"
+      loop_control:
+        loop_var: mitigation
+        label: "{{ mitigation.id }} ({{ mitigation.role_name }})"
+      when:
+        - enforce_mode == 'full'
+        - mitigation.role_name is defined
+
+    - name: Run partial roles (enforce what we can)
+      ansible.builtin.include_role:
+        name: "{{ mitigation.role_name }}"
+      loop: "{{ resolved_mitigations | selectattr('class', 'eq', 'partial') | list }}"
+      loop_control:
+        loop_var: mitigation
+        label: "{{ mitigation.id }} ({{ mitigation.role_name }})"
+      when:
+        - enforce_mode == 'full'
+        - mitigation.role_name is defined
+
+    - name: Deploy Falco detection rules for detect-class mitigations
+      ansible.builtin.include_role:
+        name: m0947_audit
+        tasks_from: deploy_falco_rule
+      vars:
+        falco_technique_id: "{{ item }}"
+      loop: "{{ technique_ids }}"
+      loop_control:
+        label: "Falco rule for {{ item }}"
+
+    - name: Log unresolved techniques
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: technique {{ item }} not found in attack_map.
+          This may be an Enterprise ATT&CK ID or a new ICS technique
+          not yet in the v19.2 bundle.
+      loop: "{{ technique_ids | reject('in', attack_map.techniques) | list }}"
+      when: technique_ids | reject('in', attack_map.techniques) | list | length > 0

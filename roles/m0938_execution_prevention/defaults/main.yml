@@ -1,0 +1,20 @@
+---
+# M0938 Execution Prevention — defaults
+#
+# All values are explicit. No hidden defaults.
+
+# fapolicyd — application whitelisting
+m0938_fapolicyd_enabled: true
+m0938_fapolicyd_permissive: false
+m0938_fapolicyd_trust_backend: "rpmdb,file"
+m0938_fapolicyd_integrity: "sha256"
+
+# SELinux enforcement
+m0938_selinux_state: enforcing
+m0938_selinux_policy: targeted
+
+# Optional: additional trusted paths for OT applications
+# These are appended to fapolicyd's file trust list.
+m0938_fapolicyd_trusted_paths: []
+#   - /opt/ot-application/bin
+#   - /usr/local/ot-tools/bin

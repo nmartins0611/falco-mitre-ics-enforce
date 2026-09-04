@@ -1,0 +1,31 @@
+---
+namespace: falco_mitre
+name: ics_enforce
+version: 0.1.0
+description: >-
+  EDA-driven ATT&CK ICS enforcement loop.
+  Ansible roles enforce MITRE ATT&CK ICS mitigations on Linux OT hosts.
+  Falco provides runtime detection. Event-Driven Ansible orchestrates the loop.
+type: collection
+authors:
+  - Nuno Martins
+license:
+  - Apache-2.0
+repository: https://github.com/nmartins/falco-mitre-ics-enforce
+tags:
+  - security
+  - mitre
+  - attack
+  - ics
+  - falco
+  - eda
+  - ot
+  - hardening
+dependencies:
+  ansible.builtin: ">=2.16"
+  ansible.posix: ">=1.5"
+build_ignore:
+  - tools
+  - data/ics-attack-19.2.json
+  - "*.pyc"
+  - __pycache__

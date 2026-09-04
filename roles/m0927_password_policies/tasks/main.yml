@@ -1,0 +1,66 @@
+---
+# M0927 Password Policies
+#
+# Enforces password complexity (pwquality), account lockout (pam_faillock),
+# and password aging (login.defs) on RHEL 9 OT hosts.
+#
+# ATT&CK ICS: M0927 — Password Policies
+# CIS RHEL 9: 5.4.1, 5.4.2, 5.4.3
+# STIG: RHEL-09-611xxx series
+
+- name: Ensure libpwquality is installed
+  ansible.builtin.dnf:
+    name: libpwquality
+    state: present
+
+- name: Configure pwquality — password complexity
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    create: true
+    mode: "0644"
+    owner: root
+    group: root
+  loop:
+    - { key: "minlen", value: "{{ m0927_pwquality_minlen }}" }
+    - { key: "dcredit", value: "{{ m0927_pwquality_dcredit }}" }
+    - { key: "ucredit", value: "{{ m0927_pwquality_ucredit }}" }
+    - { key: "lcredit", value: "{{ m0927_pwquality_lcredit }}" }
+    - { key: "ocredit", value: "{{ m0927_pwquality_ocredit }}" }
+    - { key: "minclass", value: "{{ m0927_pwquality_minclass }}" }
+    - { key: "maxrepeat", value: "{{ m0927_pwquality_maxrepeat }}" }
+    - { key: "maxclassrepeat", value: "{{ m0927_pwquality_maxclassrepeat }}" }
+    - { key: "dictcheck", value: "{{ m0927_pwquality_dictcheck }}" }
+    - { key: "enforcing", value: "{{ m0927_pwquality_enforcing }}" }
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+
+- name: Configure pam_faillock — account lockout
+  ansible.builtin.lineinfile:
+    path: /etc/security/faillock.conf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    create: true
+    mode: "0644"
+    owner: root
+    group: root
+  loop:
+    - { key: "deny", value: "{{ m0927_faillock_deny }}" }
+    - { key: "fail_interval", value: "{{ m0927_faillock_fail_interval }}" }
+    - { key: "unlock_time", value: "{{ m0927_faillock_unlock_time }}" }
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+
+- name: Configure password aging — login.defs
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^{{ item.key }}\\s+"
+    line: "{{ item.key }}\t{{ item.value }}"
+  loop:
+    - { key: "PASS_MAX_DAYS", value: "{{ m0927_pass_max_days }}" }
+    - { key: "PASS_MIN_DAYS", value: "{{ m0927_pass_min_days }}" }
+    - { key: "PASS_WARN_AGE", value: "{{ m0927_pass_warn_age }}" }
+    - { key: "PASS_MIN_LEN", value: "{{ m0927_pass_min_len }}" }
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"

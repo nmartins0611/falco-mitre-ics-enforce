@@ -1,0 +1,81 @@
+# Falco rule: T0807/T0853 — Command-Line Interface / Scripting (ICS)
+#
+# Detects shell and script interpreter execution on OT hosts that should
+# not have interactive shells. Maps to:
+#   ICS: T0807 (Command-Line Interface), T0853 (Scripting)
+#   Enterprise: T1059 (Command and Scripting Interpreter)
+#
+# Companion mitigations: M0938 (Execution Prevention), M0928 (OS Configuration)
+
+- rule: Shell spawned on OT host by non-operator process
+  desc: >-
+    Detect shell (bash, sh, zsh, dash, csh) spawned by a process that is not
+    in the expected OT operator process tree. On historian, HMI, and control
+    servers, interactive shells should only come from SSH sessions by known
+    operator accounts.
+  condition: >-
+    spawned_process
+    and proc.name in (bash, sh, zsh, dash, csh, ksh, fish)
+    and not proc.pname in (sshd, sudo, su, crond, anacron, systemd)
+    and not user.name in (root, operator, scada_admin)
+    and not container.id = host
+  output: >-
+    Shell spawned by unexpected parent on OT host
+    (user=%user.name command=%proc.cmdline parent=%proc.pname
+    container=%container.id host=%evt.hostname)
+  priority: Critical
+  tags:
+    - T0807
+    - T0853
+    - T1059
+    - mitre_execution
+    - mitre_ics
+    - host.ot
+  source: syscall
+
+- rule: Script interpreter invoked on OT host
+  desc: >-
+    Detect Python, Perl, Ruby, or Node.js invoked on OT hosts where these
+    interpreters should not run outside of known maintenance windows.
+  condition: >-
+    spawned_process
+    and proc.name in (python, python3, perl, ruby, node)
+    and not proc.pname in (crond, anacron, ansible-playbook, dnf, yum)
+    and not user.name in (root, operator)
+  output: >-
+    Script interpreter invoked on OT host
+    (user=%user.name interpreter=%proc.name command=%proc.cmdline
+    parent=%proc.pname host=%evt.hostname)
+  priority: Error
+  tags:
+    - T0853
+    - T1059
+    - mitre_execution
+    - mitre_ics
+    - host.ot
+    - scripting
+  source: syscall
+
+- rule: Suspicious command-line tool on OT host
+  desc: >-
+    Detect use of networking or data exfiltration tools (curl, wget, nc, ncat,
+    socat, ssh-keygen) on OT hosts outside of expected maintenance context.
+  condition: >-
+    spawned_process
+    and proc.name in (curl, wget, nc, ncat, socat, ssh-keygen, scp, rsync)
+    and not proc.pname in (dnf, yum, crond, ansible-playbook, satellite)
+    and not user.name = root
+  output: >-
+    Suspicious command-line tool on OT host
+    (user=%user.name tool=%proc.name command=%proc.cmdline
+    parent=%proc.pname host=%evt.hostname)
+  priority: Warning
+  tags:
+    - T0807
+    - T1059
+    - T1105
+    - mitre_execution
+    - mitre_command_and_control
+    - mitre_ics
+    - host.ot
+  source: syscall

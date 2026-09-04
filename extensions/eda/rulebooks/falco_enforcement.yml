@@ -1,0 +1,87 @@
+---
+# EDA Rulebook: Falco + Insights enforcement loop
+#
+# Sources:
+#   1. Falcosidekick webhook — runtime threat detection with ATT&CK tags
+#   2. Red Hat Insights (future) — compliance posture drift events
+#
+# Each rule extracts ATT&CK technique IDs from the event payload
+# and dispatches the enforcement playbook with those IDs.
+
+- name: FALCO_MITRE enforcement loop
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    # ── Falcosidekick: critical or error Falco alert with ATT&CK tags ──
+    - name: Falco critical alert — enforce mitigations
+      condition: >-
+        event.payload.priority is defined
+        and event.payload.priority in ["Critical", "Error"]
+        and event.payload.tags is defined
+        and event.payload.source is defined
+        and event.payload.source == "syscalls"
+      action:
+        run_playbook:
+          name: falco_mitre.ics_enforce.dispatcher
+          extra_vars:
+            technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
+            source_host: "{{ event.payload.hostname }}"
+            alert_rule: "{{ event.payload.rule }}"
+            alert_priority: "{{ event.payload.priority }}"
+            event_source: falcosidekick
+            alert_uuid: "{{ event.payload.uuid | default('unknown') }}"
+
+    # ── Falcosidekick: warning-level — deploy detection rules only ──
+    - name: Falco warning alert — deploy detection rules
+      condition: >-
+        event.payload.priority is defined
+        and event.payload.priority == "Warning"
+        and event.payload.tags is defined
+        and event.payload.source is defined
+        and event.payload.source == "syscalls"
+      action:
+        run_playbook:
+          name: falco_mitre.ics_enforce.dispatcher
+          extra_vars:
+            technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
+            source_host: "{{ event.payload.hostname }}"
+            alert_rule: "{{ event.payload.rule }}"
+            alert_priority: "{{ event.payload.priority }}"
+            event_source: falcosidekick
+            enforce_mode: detect_only
+
+    # ── Insights: compliance score drop ──
+    - name: Insights compliance below threshold
+      condition: >-
+        event.payload.event_type is defined
+        and event.payload.event_type == "compliance"
+        and event.payload.compliance_score is defined
+        and event.payload.compliance_score < 80
+      action:
+        run_playbook:
+          name: falco_mitre.ics_enforce.dispatcher
+          extra_vars:
+            technique_ids: "{{ event.payload.failed_rule_ids | default([]) }}"
+            source_host: "{{ event.payload.hostname }}"
+            event_source: insights
+            compliance_score: "{{ event.payload.compliance_score }}"
+
+    # ── Insights: new security advisory ──
+    - name: Insights new critical advisory
+      condition: >-
+        event.payload.event_type is defined
+        and event.payload.event_type == "advisory"
+        and event.payload.severity is defined
+        and event.payload.severity in ["Critical", "Important"]
+      action:
+        run_playbook:
+          name: falco_mitre.ics_enforce.dispatcher
+          extra_vars:
+            technique_ids: "{{ event.payload.cve_techniques | default([]) }}"
+            source_host: "{{ event.payload.hostname | default('all') }}"
+            event_source: insights_advisory
+            advisory_id: "{{ event.payload.advisory_id }}"

@@ -1,0 +1,21 @@
+---
+# Deploy a Falco rule for a specific ATT&CK technique.
+#
+# Called by the dispatcher for detect-class mitigations.
+# Expects: falco_technique_id (e.g. "T1059")
+
+- name: Check if Falco rule file exists for technique {{ falco_technique_id }}
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/falco/{{ falco_technique_id | lower }}_detection.yaml"
+  register: m0947_falco_rule_file
+  delegate_to: localhost
+
+- name: Deploy Falco rule for {{ falco_technique_id }}
+  ansible.builtin.copy:
+    src: "falco/{{ falco_technique_id | lower }}_detection.yaml"
+    dest: "{{ m0947_falco_rules_dir }}/{{ falco_technique_id | lower }}_detection.yaml"
+    mode: "0644"
+    owner: root
+    group: root
+  notify: Restart falco
+  when: m0947_falco_rule_file.stat.exists

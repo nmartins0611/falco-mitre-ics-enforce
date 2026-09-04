@@ -1,0 +1,92 @@
+---
+# M0938 Execution Prevention
+#
+# Enforces application whitelisting (fapolicyd) and SELinux on RHEL 9 OT hosts.
+#
+# ATT&CK ICS: M0938 — Execution Prevention
+# CIS RHEL 9: 1.3.1 (fapolicyd), 1.6.1 (SELinux)
+# STIG: RHEL-09-431xxx series
+
+# ── SELinux ──
+
+- name: Ensure SELinux packages are installed
+  ansible.builtin.dnf:
+    name:
+      - libselinux
+      - libselinux-utils
+      - policycoreutils
+      - policycoreutils-python-utils
+    state: present
+
+- name: Set SELinux to enforcing in config
+  ansible.posix.selinux:
+    state: "{{ m0938_selinux_state }}"
+    policy: "{{ m0938_selinux_policy }}"
+
+- name: Check current SELinux mode
+  ansible.builtin.command:
+    cmd: getenforce
+  register: m0938_selinux_current
+  changed_when: false
+
+- name: Set SELinux enforcing at runtime (if currently permissive)
+  ansible.builtin.command:
+    cmd: setenforce 1
+  when:
+    - m0938_selinux_state == 'enforcing'
+    - m0938_selinux_current.stdout | lower != 'enforcing'
+  changed_when: true
+
+# ── fapolicyd ──
+
+- name: Ensure fapolicyd is installed
+  ansible.builtin.dnf:
+    name: fapolicyd
+    state: present
+  when: m0938_fapolicyd_enabled
+
+- name: Configure fapolicyd trust backend
+  ansible.builtin.lineinfile:
+    path: /etc/fapolicyd/fapolicyd.conf
+    regexp: "^trust\\s*="
+    line: "trust = {{ m0938_fapolicyd_trust_backend }}"
+  notify: Restart fapolicyd
+  when: m0938_fapolicyd_enabled
+
+- name: Configure fapolicyd integrity checking
+  ansible.builtin.lineinfile:
+    path: /etc/fapolicyd/fapolicyd.conf
+    regexp: "^integrity\\s*="
+    line: "integrity = {{ m0938_fapolicyd_integrity }}"
+  notify: Restart fapolicyd
+  when: m0938_fapolicyd_enabled
+
+- name: Set fapolicyd permissive mode
+  ansible.builtin.lineinfile:
+    path: /etc/fapolicyd/fapolicyd.conf
+    regexp: "^permissive\\s*="
+    line: "permissive = {{ '1' if m0938_fapolicyd_permissive else '0' }}"
+  notify: Restart fapolicyd
+  when: m0938_fapolicyd_enabled
+
+- name: Add OT application trusted paths to fapolicyd
+  ansible.builtin.lineinfile:
+    path: /etc/fapolicyd/fapolicyd.trust
+    line: "{{ item }}"
+    create: true
+    mode: "0644"
+    owner: root
+    group: root
+  loop: "{{ m0938_fapolicyd_trusted_paths }}"
+  notify: Update fapolicyd trust database
+  when:
+    - m0938_fapolicyd_enabled
+    - m0938_fapolicyd_trusted_paths | length > 0
+
+- name: Enable and start fapolicyd
+  ansible.builtin.systemd:
+    name: fapolicyd
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: m0938_fapolicyd_enabled

@@ -1,0 +1,27 @@
+---
+# M0947 Audit — defaults
+#
+# All values are explicit. No hidden defaults.
+
+# auditd configuration
+m0947_auditd_enabled: true
+m0947_auditd_max_log_file: 50
+m0947_auditd_max_log_file_action: rotate
+m0947_auditd_num_logs: 5
+m0947_auditd_space_left_action: email
+m0947_auditd_admin_space_left_action: halt
+
+# AIDE (Advanced Intrusion Detection Environment)
+m0947_aide_enabled: true
+m0947_aide_cron_hour: "4"
+m0947_aide_cron_minute: "0"
+
+# Falco runtime detection
+m0947_falco_enabled: true
+m0947_falco_rules_dir: /etc/falco/rules.d
+m0947_falco_sidekick_enabled: true
+m0947_falco_sidekick_webhook_url: "http://eda-controller:5000/webhook"
+
+# Falco rule files to deploy (paths relative to collection files/falco/)
+m0947_falco_rule_files:
+  - t1059_shell_detection.yaml
