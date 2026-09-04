@@ -602,6 +602,219 @@
   </div>
   {% endif %}
 
+  <!-- Attack Map -->
+  <div class="section-title">
+    <span class="dot" style="background: var(--accent-purple)"></span>
+    ATT&amp;CK ICS Attack Map
+  </div>
+
+  {# ── Compute attack map stats ── #}
+  {% set map_ns = namespace(
+    total=0, enforceable=0, partial_only=0, detect_only=0, skip_only=0,
+    enforce_assignments=0, partial_assignments=0, detect_assignments=0,
+    unique_roles=[]
+  ) %}
+  {% for tid, tdata in report_attack_map.techniques.items() %}
+    {% set map_ns.total = map_ns.total + 1 %}
+    {% set has_enforce = false %}
+    {% set has_partial = false %}
+    {% set has_detect = false %}
+    {% set mits = tdata.mitigations if tdata.mitigations is iterable and tdata.mitigations is not none else [] %}
+    {% for m in mits %}
+      {% if m.class == 'enforce' %}
+        {% set has_enforce = true %}
+        {% set map_ns.enforce_assignments = map_ns.enforce_assignments + 1 %}
+        {% if m.role_name is defined and m.role_name and m.role_name not in map_ns.unique_roles %}
+          {% set map_ns.unique_roles = map_ns.unique_roles + [m.role_name] %}
+        {% endif %}
+      {% elif m.class == 'partial' %}
+        {% set has_partial = true %}
+        {% set map_ns.partial_assignments = map_ns.partial_assignments + 1 %}
+      {% elif m.class == 'detect' %}
+        {% set has_detect = true %}
+        {% set map_ns.detect_assignments = map_ns.detect_assignments + 1 %}
+      {% endif %}
+    {% endfor %}
+    {% if has_enforce %}
+      {% set map_ns.enforceable = map_ns.enforceable + 1 %}
+    {% elif has_partial %}
+      {% set map_ns.partial_only = map_ns.partial_only + 1 %}
+    {% elif has_detect %}
+      {% set map_ns.detect_only = map_ns.detect_only + 1 %}
+    {% else %}
+      {% set map_ns.skip_only = map_ns.skip_only + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  <!-- Attack Map Summary -->
+  <div class="summary-grid">
+    <div class="card">
+      <div class="card-label">Techniques</div>
+      <div class="card-value value-purple">{{ map_ns.total }}</div>
+      <div class="card-sub">ICS ATT&amp;CK v19.2</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Enforceable</div>
+      <div class="card-value value-green">{{ map_ns.enforceable }}</div>
+      <div class="card-sub">have at least one enforce-class mitigation</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Enforce Assignments</div>
+      <div class="card-value value-green">{{ map_ns.enforce_assignments }}</div>
+      <div class="card-sub">technique-mitigation pairs</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Ansible Roles</div>
+      <div class="card-value value-blue">{{ map_ns.unique_roles | length }}</div>
+      <div class="card-sub">unique enforce/partial roles</div>
+    </div>
+  </div>
+
+  <!-- Coverage bar -->
+  <div style="margin-bottom: 1.5rem;">
+    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">
+      <span>{{ map_ns.enforceable }} enforce</span>
+      <span>{{ map_ns.partial_only }} partial only</span>
+      <span>{{ map_ns.detect_only }} detect only</span>
+      <span>{{ map_ns.skip_only }} no Linux control</span>
+    </div>
+    <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,0.04);">
+      {% if map_ns.total > 0 %}
+      <div style="width: {{ (map_ns.enforceable / map_ns.total * 100) | round(1) }}%; background: var(--accent-green);"></div>
+      <div style="width: {{ (map_ns.partial_only / map_ns.total * 100) | round(1) }}%; background: var(--accent-yellow);"></div>
+      <div style="width: {{ (map_ns.detect_only / map_ns.total * 100) | round(1) }}%; background: var(--accent-blue);"></div>
+      <div style="width: {{ (map_ns.skip_only / map_ns.total * 100) | round(1) }}%; background: rgba(95,99,104,0.4);"></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Filter controls (JS) -->
+  <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    <button class="filter-btn active" onclick="filterMap('all')">All</button>
+    <button class="filter-btn" onclick="filterMap('enforce')">Enforce</button>
+    <button class="filter-btn" onclick="filterMap('partial')">Partial</button>
+    <button class="filter-btn" onclick="filterMap('detect')">Detect</button>
+    <button class="filter-btn" onclick="filterMap('skip')">Skip only</button>
+    <input type="text" id="map-search" placeholder="Search techniques…"
+      oninput="searchMap(this.value)"
+      style="margin-left: auto; padding: 0.3rem 0.6rem; background: var(--bg-card);
+             border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary);
+             font-size: 0.8rem; outline: none; min-width: 180px;">
+  </div>
+
+  <style>
+    .filter-btn {
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { background: var(--bg-card-hover); }
+    .filter-btn.active {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-primary);
+      border-color: var(--text-muted);
+    }
+    .map-row.hidden { display: none; }
+  </style>
+
+  <!-- Attack Map Table -->
+  <div class="table-wrap" style="max-height: 600px; overflow-y: auto;">
+    <table id="attack-map-table">
+      <thead>
+        <tr>
+          <th>Technique</th>
+          <th>Name</th>
+          <th>Enforce</th>
+          <th>Partial</th>
+          <th>Detect</th>
+          <th>Skip</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tid in report_attack_map.techniques | sort %}
+          {% set tdata = report_attack_map.techniques[tid] %}
+          {% set enforce_list = [] %}
+          {% set partial_list = [] %}
+          {% set detect_list = [] %}
+          {% set skip_list = [] %}
+          {% set t_mits = tdata.mitigations if tdata.mitigations is iterable and tdata.mitigations is not none else [] %}
+          {% for m in t_mits %}
+            {% if m.class == 'enforce' %}
+              {% set _ = enforce_list.append(m) %}
+            {% elif m.class == 'partial' %}
+              {% set _ = partial_list.append(m) %}
+            {% elif m.class == 'detect' %}
+              {% set _ = detect_list.append(m) %}
+            {% else %}
+              {% set _ = skip_list.append(m) %}
+            {% endif %}
+          {% endfor %}
+          {% set row_class = 'enforce' if enforce_list else ('partial' if partial_list else ('detect' if detect_list else 'skip')) %}
+          <tr class="map-row" data-class="{{ row_class }}" data-search="{{ tid | lower }} {{ tdata.name | lower }}">
+            <td><code style="color: var(--accent-blue); font-weight: 600;">{{ tid }}</code></td>
+            <td style="font-size: 0.8rem;">{{ tdata.name }}</td>
+            <td>
+              {% for m in enforce_list %}
+                <span class="badge badge-enforce" title="{{ m.name }}{% if m.role_name is defined %} → {{ m.role_name }}{% endif %}">{{ m.id }}</span>
+              {% endfor %}
+              {% if not enforce_list %}<span style="color: var(--text-muted);">—</span>{% endif %}
+            </td>
+            <td>
+              {% for m in partial_list %}
+                <span class="badge badge-partial" title="{{ m.name }}{% if m.role_name is defined %} → {{ m.role_name }}{% endif %}">{{ m.id }}</span>
+              {% endfor %}
+              {% if not partial_list %}<span style="color: var(--text-muted);">—</span>{% endif %}
+            </td>
+            <td>
+              {% for m in detect_list %}
+                <span class="badge badge-detect" title="{{ m.name }}">{{ m.id }}</span>
+              {% endfor %}
+              {% if not detect_list %}<span style="color: var(--text-muted);">—</span>{% endif %}
+            </td>
+            <td>
+              {% for m in skip_list %}
+                <span class="tag" title="{{ m.name }}: {{ m.mechanism | default('') }}">{{ m.id }}</span>
+              {% endfor %}
+              {% if not skip_list %}<span style="color: var(--text-muted);">—</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let activeFilter = 'all';
+
+    function filterMap(cls) {
+      activeFilter = cls;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      applyFilters();
+    }
+
+    function searchMap(query) {
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const query = (document.getElementById('map-search').value || '').toLowerCase();
+      document.querySelectorAll('.map-row').forEach(row => {
+        const cls = row.getAttribute('data-class');
+        const search = row.getAttribute('data-search');
+        const matchClass = activeFilter === 'all' || cls === activeFilter;
+        const matchSearch = !query || search.includes(query);
+        row.classList.toggle('hidden', !(matchClass && matchSearch));
+      });
+    }
+  </script>
+
 </div>
 
 <div class="footer">
