@@ -1,0 +1,25 @@
+---
+# M0942 Disable or Remove Feature or Program — defaults
+#
+# Services to mask/disable on OT hosts.
+# These are common attack surfaces that should not run on
+# dedicated historian, HMI, or control server hosts.
+
+m0942_services_to_disable:
+  - cups
+  - cups-browsed
+  - avahi-daemon
+  - bluetooth
+  - ModemManager
+  - rpcbind
+  - nfs-server
+  - nfs-client.target
+
+m0942_services_to_mask:
+  - ctrl-alt-del.target
+  - debug-shell.service
+
+m0942_sockets_to_disable:
+  - cups.socket
+  - avahi-daemon.socket
+  - rpcbind.socket

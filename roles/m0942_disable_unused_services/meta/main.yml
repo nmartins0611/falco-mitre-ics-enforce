@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: m0942_disable_unused_services
+  author: Nuno Martins
+  description: >-
+    Enforce MITRE ATT&CK ICS M0942 (Disable or Remove Feature or Program).
+    Masks and disables unnecessary services and sockets on RHEL OT hosts.
+  license: Apache-2.0
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - security
+    - mitre
+    - ics
+    - hardening
+    - services
+dependencies: []

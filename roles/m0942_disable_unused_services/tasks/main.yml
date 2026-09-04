@@ -1,0 +1,37 @@
+---
+# M0942 Disable or Remove Feature or Program
+#
+# Disables and masks unnecessary services on RHEL 9 OT hosts.
+#
+# ATT&CK ICS: M0942 — Disable or Remove Feature or Program
+# CIS RHEL 9: 2.1.x, 2.2.x (unnecessary services)
+# STIG: RHEL-09-215xxx series
+
+- name: Disable unnecessary services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: "{{ m0942_services_to_disable }}"
+  loop_control:
+    label: "{{ item }}"
+  failed_when: false
+
+- name: Mask dangerous services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+  loop: "{{ m0942_services_to_mask }}"
+  loop_control:
+    label: "{{ item }}"
+  failed_when: false
+
+- name: Disable unnecessary sockets
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop: "{{ m0942_sockets_to_disable }}"
+  loop_control:
+    label: "{{ item }}"
+  failed_when: false
