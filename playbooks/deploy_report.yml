@@ -1,0 +1,12 @@
+---
+# Deploy the enforcement report dashboard to the report host.
+# Run: ansible-playbook -i inventory/hosts.yml playbooks/deploy_report.yml
+
+- name: Deploy enforcement report dashboard
+  hosts: report_host
+  gather_facts: true
+
+  tasks:
+    - name: Include enforcement_report role
+      ansible.builtin.include_role:
+        name: enforcement_report
