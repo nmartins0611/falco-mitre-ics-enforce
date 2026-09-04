@@ -16,7 +16,7 @@
   vars:
     attack_map: "{{ lookup('file', attack_map_path) | from_yaml }}"
     attack_map_path: "{{ playbook_dir }}/../data/attack_map.yml"
-    enforce_mode: "{{ enforce_mode | default('full') }}"
+    enforce_mode: "full"
     resolved_mitigations: []
 
   tasks:
