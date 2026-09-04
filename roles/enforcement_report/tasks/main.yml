@@ -46,11 +46,13 @@
   notify: Restart httpd
 
 - name: Allow httpd to bind report port in SELinux
-  community.general.seport:
-    ports: "{{ report_http_port }}"
-    proto: tcp
-    setype: http_port_t
-    state: present
+  ansible.builtin.command:
+    cmd: "semanage port -a -t http_port_t -p tcp {{ report_http_port }}"
+  register: seport_result
+  changed_when: seport_result.rc == 0
+  failed_when:
+    - seport_result.rc != 0
+    - "'already defined' not in seport_result.stderr"
   when: ansible_selinux.status == 'enabled'
 
 - name: Open firewall port for report
