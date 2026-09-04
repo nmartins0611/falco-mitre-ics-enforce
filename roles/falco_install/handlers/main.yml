@@ -1,7 +1,7 @@
 ---
 - name: Restart falco
   ansible.builtin.systemd:
-    name: falco-kmod
+    name: "falco-{{ falco_driver | default('modern_ebpf') }}"
     state: restarted
     enabled: true
 

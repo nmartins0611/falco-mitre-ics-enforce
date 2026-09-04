@@ -1,12 +1,12 @@
 ---
 # Falco configuration
-falco_version: "0.39.2"
-falco_driver: kmod
+falco_version: "0.44.1"
+falco_driver: modern-bpf
 falco_rules_dir: /etc/falco/rules.d
 
 # Falcosidekick configuration
 falcosidekick_install: true
-falcosidekick_version: "2.30.0"
+falcosidekick_version: "2.35.0"
 falcosidekick_config_dir: /etc/falcosidekick
 
 # EDA event stream endpoint
