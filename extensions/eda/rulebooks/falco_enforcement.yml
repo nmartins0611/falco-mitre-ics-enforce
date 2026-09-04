@@ -8,14 +8,15 @@
 # When running as an AAP EDA activation, run_job_template dispatches
 # through the controller (requires AAP credential on the activation).
 #
-# The __SOURCE_1 placeholder is mapped to the Falcosidekick event stream
-# in the activation's source_mappings configuration.
+# The webhook source is mapped to the Falcosidekick event stream via
+# source_mappings in the AAP activation configuration.
 
 - name: FALCO_MITRE enforcement loop
   hosts: all
   sources:
-    - ansible.eda.pg_listener:
-        name: __SOURCE_1
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
 
   rules:
     # ── Falcosidekick: critical or error Falco alert with ATT&CK tags ──
