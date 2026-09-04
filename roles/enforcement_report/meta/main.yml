@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: enforcement_report
+  author: Nuno Martins
+  description: >-
+    Generate and deploy an HTML enforcement report dashboard.
+    Accumulates event data from each EDA-triggered enforcement run
+    and renders a static HTML dashboard served by httpd.
+  license: Apache-2.0
+  min_ansible_version: "2.16"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - security
+    - mitre
+    - ics
+    - reporting
+    - dashboard
+dependencies: []

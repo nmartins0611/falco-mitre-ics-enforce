@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="60">
+  <title>FALCO_MITRE — Enforcement Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-card: #1a1d26;
+      --bg-card-hover: #22262f;
+      --border: #2a2e38;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #5f6368;
+      --accent-red: #ee0000;
+      --accent-blue: #4285f4;
+      --accent-green: #34a853;
+      --accent-yellow: #fbbc04;
+      --accent-orange: #ea8600;
+      --accent-purple: #a142f4;
+      --radius: 8px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Red Hat Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1d26 0%, #0f1117 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: var(--accent-red);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .header h1 span {
+      color: var(--accent-red);
+    }
+
+    .header-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Summary Cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: background 0.2s;
+    }
+
+    .card:hover { background: var(--bg-card-hover); }
+
+    .card-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card-sub {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .value-red { color: var(--accent-red); }
+    .value-blue { color: var(--accent-blue); }
+    .value-green { color: var(--accent-green); }
+    .value-yellow { color: var(--accent-yellow); }
+    .value-orange { color: var(--accent-orange); }
+    .value-purple { color: var(--accent-purple); }
+
+    /* Section headers */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Events table */
+    .table-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      margin-bottom: 2rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    thead th {
+      background: rgba(255,255,255,0.03);
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-critical { background: rgba(238,0,0,0.15); color: #ff4444; }
+    .badge-error { background: rgba(234,134,0,0.15); color: var(--accent-orange); }
+    .badge-warning { background: rgba(251,188,4,0.15); color: var(--accent-yellow); }
+    .badge-info { background: rgba(66,133,244,0.15); color: var(--accent-blue); }
+    .badge-enforce { background: rgba(52,168,83,0.15); color: var(--accent-green); }
+    .badge-partial { background: rgba(251,188,4,0.15); color: var(--accent-yellow); }
+    .badge-detect { background: rgba(66,133,244,0.15); color: var(--accent-blue); }
+    .badge-skip { background: rgba(95,99,104,0.15); color: var(--text-muted); }
+    .badge-completed { background: rgba(52,168,83,0.15); color: var(--accent-green); }
+    .badge-failed { background: rgba(238,0,0,0.15); color: #ff4444; }
+
+    .tag {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-family: 'Red Hat Mono', monospace;
+      margin: 0.1rem;
+      color: var(--text-secondary);
+    }
+
+    /* Coverage grid */
+    .coverage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .coverage-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .coverage-item .technique-id {
+      font-family: 'Red Hat Mono', monospace;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-right: 0.5rem;
+    }
+
+    .coverage-item .technique-name {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .coverage-item .hit-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent-red);
+      margin-left: 0.5rem;
+    }
+
+    /* Mitigation breakdown */
+    .mitigation-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .mitigation-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+    }
+
+    .mitigation-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .mitigation-id {
+      font-family: 'Red Hat Mono', monospace;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .mitigation-name {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .mitigation-role {
+      font-size: 0.75rem;
+      font-family: 'Red Hat Mono', monospace;
+      color: var(--text-muted);
+    }
+
+    /* Host status */
+    .host-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .host-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .host-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .host-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      padding: 0.2rem 0;
+      color: var(--text-secondary);
+    }
+
+    .host-stat-val { font-weight: 600; color: var(--text-primary); }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">FM</div>
+    <div>
+      <h1>FALCO<span>_MITRE</span> — Enforcement Dashboard</h1>
+    </div>
+  </div>
+  <div class="header-meta">
+    Generated {{ ansible_date_time.iso8601 }} · Auto-refresh 60s
+  </div>
+</div>
+
+<div class="container">
+
+  {# ── Compute summary stats ── #}
+  {% set ns = namespace(
+    total_events = all_events | length,
+    unique_techniques = [],
+    unique_mitigations = [],
+    unique_hosts = [],
+    enforce_count = 0,
+    detect_count = 0,
+    critical_count = 0
+  ) %}
+
+  {% for evt in all_events %}
+    {% for tid in evt.technique_ids | default([]) %}
+      {% if tid not in ns.unique_techniques %}
+        {% set ns.unique_techniques = ns.unique_techniques + [tid] %}
+      {% endif %}
+    {% endfor %}
+    {% for mit in evt.resolved_mitigations | default([]) %}
+      {% set mid = mit.id | default(mit) %}
+      {% if mid not in ns.unique_mitigations %}
+        {% set ns.unique_mitigations = ns.unique_mitigations + [mid] %}
+      {% endif %}
+      {% if mit.class | default('') == 'enforce' %}
+        {% set ns.enforce_count = ns.enforce_count + 1 %}
+      {% elif mit.class | default('') == 'detect' %}
+        {% set ns.detect_count = ns.detect_count + 1 %}
+      {% endif %}
+    {% endfor %}
+    {% if evt.source_host | default('') not in ns.unique_hosts and evt.source_host | default('') != '' %}
+      {% set ns.unique_hosts = ns.unique_hosts + [evt.source_host] %}
+    {% endif %}
+    {% if evt.alert_priority | default('') | upper in ['CRITICAL'] %}
+      {% set ns.critical_count = ns.critical_count + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  <!-- Summary Cards -->
+  <div class="summary-grid">
+    <div class="card">
+      <div class="card-label">Total Events</div>
+      <div class="card-value value-blue">{{ ns.total_events }}</div>
+      <div class="card-sub">enforcement runs triggered</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Techniques Seen</div>
+      <div class="card-value value-purple">{{ ns.unique_techniques | length }}</div>
+      <div class="card-sub">unique ATT&amp;CK ICS technique IDs</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Mitigations Applied</div>
+      <div class="card-value value-green">{{ ns.enforce_count }}</div>
+      <div class="card-sub">enforce-class role executions</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Detection Rules</div>
+      <div class="card-value value-blue">{{ ns.detect_count }}</div>
+      <div class="card-sub">detect-class rules deployed</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Hosts Protected</div>
+      <div class="card-value value-orange">{{ ns.unique_hosts | length }}</div>
+      <div class="card-sub">{{ ns.unique_hosts | join(', ') }}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Critical Alerts</div>
+      <div class="card-value value-red">{{ ns.critical_count }}</div>
+      <div class="card-sub">critical-priority events</div>
+    </div>
+  </div>
+
+  <!-- Event History -->
+  <div class="section-title">
+    <span class="dot" style="background: var(--accent-red)"></span>
+    Event History
+  </div>
+
+  {% if all_events | length > 0 %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Source</th>
+          <th>Host</th>
+          <th>Alert</th>
+          <th>Priority</th>
+          <th>Techniques</th>
+          <th>Mitigations</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for evt in all_events | reverse %}
+        <tr>
+          <td style="white-space:nowrap;">{{ evt.timestamp | default('—') }}</td>
+          <td>{{ evt.event_source | default('—') }}</td>
+          <td><code>{{ evt.source_host | default('—') }}</code></td>
+          <td>{{ evt.alert_rule | default('—') }}</td>
+          <td>
+            {% set prio = evt.alert_priority | default('') | upper %}
+            {% if prio == 'CRITICAL' %}
+              <span class="badge badge-critical">{{ prio }}</span>
+            {% elif prio == 'ERROR' %}
+              <span class="badge badge-error">{{ prio }}</span>
+            {% elif prio == 'WARNING' %}
+              <span class="badge badge-warning">{{ prio }}</span>
+            {% else %}
+              <span class="badge badge-info">{{ prio | default('—') }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% for tid in evt.technique_ids | default([]) %}
+              <span class="tag">{{ tid }}</span>
+            {% endfor %}
+          </td>
+          <td>
+            {% for mit in evt.resolved_mitigations | default([]) %}
+              <span class="badge badge-{{ mit.class | default('skip') }}">{{ mit.id | default(mit) }}</span>
+            {% endfor %}
+          </td>
+          <td>
+            <span class="badge badge-{{ evt.status | default('completed') }}">{{ evt.status | default('completed') }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="table-wrap">
+    <div class="empty-state">No enforcement events recorded yet. Waiting for Falco alerts…</div>
+  </div>
+  {% endif %}
+
+  <!-- Technique Coverage -->
+  <div class="section-title">
+    <span class="dot" style="background: var(--accent-purple)"></span>
+    Technique Coverage
+  </div>
+
+  {% if ns.unique_techniques | length > 0 %}
+  <div class="coverage-grid">
+    {% for tid in ns.unique_techniques | sort %}
+      {% set technique_data = report_attack_map.techniques[tid] | default({}) %}
+      {% set hit_count = namespace(n=0) %}
+      {% for evt in all_events %}
+        {% if tid in (evt.technique_ids | default([])) %}
+          {% set hit_count.n = hit_count.n + 1 %}
+        {% endif %}
+      {% endfor %}
+      <div class="coverage-item">
+        <span class="technique-id">{{ tid }}</span>
+        <span class="technique-name">{{ technique_data.name | default('Unknown technique') }}</span>
+        <span class="hit-count">{{ hit_count.n }}×</span>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="table-wrap">
+    <div class="empty-state">No techniques observed yet.</div>
+  </div>
+  {% endif %}
+
+  <!-- Mitigation Breakdown -->
+  <div class="section-title">
+    <span class="dot" style="background: var(--accent-green)"></span>
+    Mitigations Applied
+  </div>
+
+  {# Collect unique mitigation objects from all events #}
+  {% set seen_mits = namespace(items=[]) %}
+  {% for evt in all_events %}
+    {% for mit in evt.resolved_mitigations | default([]) %}
+      {% set mid = mit.id | default(mit) %}
+      {% if mid not in (seen_mits.items | map(attribute='id') | list) %}
+        {% set seen_mits.items = seen_mits.items + [mit] %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {% if seen_mits.items | length > 0 %}
+  <div class="mitigation-list">
+    {% for mit in seen_mits.items | sort(attribute='id') %}
+    <div class="mitigation-item">
+      <div class="mitigation-header">
+        <span class="mitigation-id">{{ mit.id | default('—') }}</span>
+        <span class="badge badge-{{ mit.class | default('skip') }}">{{ mit.class | default('—') }}</span>
+      </div>
+      <div class="mitigation-name">{{ mit.name | default('—') }}</div>
+      {% if mit.role_name is defined %}
+      <div class="mitigation-role">role: {{ mit.role_name }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="table-wrap">
+    <div class="empty-state">No mitigations applied yet.</div>
+  </div>
+  {% endif %}
+
+  <!-- Host Activity -->
+  <div class="section-title">
+    <span class="dot" style="background: var(--accent-orange)"></span>
+    Host Activity
+  </div>
+
+  {% if ns.unique_hosts | length > 0 %}
+  <div class="host-grid">
+    {% for host in ns.unique_hosts | sort %}
+      {% set host_ns = namespace(events=0, techniques=[], last_seen='') %}
+      {% for evt in all_events %}
+        {% if evt.source_host == host %}
+          {% set host_ns.events = host_ns.events + 1 %}
+          {% set host_ns.last_seen = evt.timestamp %}
+          {% for tid in evt.technique_ids | default([]) %}
+            {% if tid not in host_ns.techniques %}
+              {% set host_ns.techniques = host_ns.techniques + [tid] %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+      <div class="host-card">
+        <div class="host-name">{{ host }}</div>
+        <div class="host-stat">
+          <span>Events</span>
+          <span class="host-stat-val">{{ host_ns.events }}</span>
+        </div>
+        <div class="host-stat">
+          <span>Unique techniques</span>
+          <span class="host-stat-val">{{ host_ns.techniques | length }}</span>
+        </div>
+        <div class="host-stat">
+          <span>Last activity</span>
+          <span class="host-stat-val">{{ host_ns.last_seen | default('—') }}</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="table-wrap">
+    <div class="empty-state">No host activity recorded yet.</div>
+  </div>
+  {% endif %}
+
+</div>
+
+<div class="footer">
+  FALCO_MITRE · ICS Enforcement Loop · ATT&amp;CK ICS v19.2 ·
+  <a href="https://github.com/nmartins/falco-mitre-ics-enforce" style="color: var(--accent-blue); text-decoration: none;">GitHub</a>
+</div>
+
+</body>
+</html>

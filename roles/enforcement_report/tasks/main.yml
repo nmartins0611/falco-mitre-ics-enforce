@@ -1,0 +1,107 @@
+---
+# enforcement_report — main tasks
+#
+# Installs httpd, appends current enforcement event as JSON,
+# reads all historical events, and regenerates the HTML dashboard.
+
+- name: Install httpd
+  ansible.builtin.dnf:
+    name: httpd
+    state: present
+
+- name: Create report directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: apache
+    group: apache
+    mode: "0755"
+  loop:
+    - "{{ report_web_root }}"
+    - "{{ report_data_dir }}"
+
+- name: Configure httpd to listen on report port
+  ansible.builtin.copy:
+    dest: /etc/httpd/conf.d/falco_mitre.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      Listen {{ report_http_port }}
+      <VirtualHost *:{{ report_http_port }}>
+          DocumentRoot "{{ report_web_root }}"
+          <Directory "{{ report_web_root }}">
+              Options Indexes FollowSymLinks
+              AllowOverride None
+              Require all granted
+          </Directory>
+      </VirtualHost>
+  notify: Restart httpd
+
+- name: Open firewall port for report
+  ansible.posix.firewalld:
+    port: "{{ report_http_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Load attack_map for technique metadata
+  ansible.builtin.set_fact:
+    report_attack_map: "{{ lookup('file', report_attack_map_path) | from_yaml }}"
+
+- name: Build event record
+  ansible.builtin.set_fact:
+    current_event:
+      timestamp: "{{ report_event_timestamp }}"
+      event_source: "{{ report_event_source }}"
+      source_host: "{{ report_source_host }}"
+      alert_rule: "{{ report_alert_rule }}"
+      alert_priority: "{{ report_alert_priority }}"
+      technique_ids: "{{ report_technique_ids }}"
+      resolved_mitigations: "{{ report_resolved_mitigations | default([]) | map('combine', {}) | list }}"
+      enforce_mode: "{{ report_enforce_mode }}"
+      status: "{{ report_event_status }}"
+
+- name: Write event JSON file
+  ansible.builtin.copy:
+    dest: "{{ report_data_dir }}/{{ report_event_timestamp | regex_replace('[^0-9]', '') }}_{{ report_source_host | regex_replace('\\.', '_') }}.json"
+    content: "{{ current_event | to_nice_json }}"
+    owner: apache
+    group: apache
+    mode: "0644"
+
+- name: Find all event files
+  ansible.builtin.find:
+    paths: "{{ report_data_dir }}"
+    patterns: "*.json"
+  register: event_files
+
+- name: Read all event files
+  ansible.builtin.slurp:
+    src: "{{ item.path }}"
+  loop: "{{ event_files.files | sort(attribute='path') }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: event_contents
+
+- name: Parse all events
+  ansible.builtin.set_fact:
+    all_events: "{{ event_contents.results | map(attribute='content') | map('b64decode') | map('from_json') | list }}"
+
+- name: Generate HTML dashboard
+  ansible.builtin.template:
+    src: dashboard.html.j2
+    dest: "{{ report_html_path }}"
+    owner: apache
+    group: apache
+    mode: "0644"
+
+- name: Ensure httpd is running
+  ansible.builtin.systemd:
+    name: httpd
+    state: started
+    enabled: true
+
+- name: Report URL
+  ansible.builtin.debug:
+    msg: "Dashboard available at http://{{ inventory_hostname }}:{{ report_http_port }}/"

@@ -1,0 +1,30 @@
+---
+# enforcement_report — defaults
+#
+# All values are explicit. No hidden defaults.
+
+# Directory where the report is served from
+report_web_root: /var/www/falco_mitre
+
+# Directory where event JSON files accumulate
+report_data_dir: "{{ report_web_root }}/data"
+
+# Path to the generated HTML dashboard
+report_html_path: "{{ report_web_root }}/index.html"
+
+# Path to the attack_map.yml for technique metadata
+report_attack_map_path: "{{ playbook_dir }}/../data/attack_map.yml"
+
+# Firewall port for httpd
+report_http_port: 8088
+
+# Event data passed from the dispatcher
+report_event_timestamp: "{{ ansible_date_time.iso8601 }}"
+report_event_source: "unknown"
+report_source_host: "unknown"
+report_alert_rule: ""
+report_alert_priority: ""
+report_technique_ids: []
+report_resolved_mitigations: []
+report_enforce_mode: "full"
+report_event_status: "completed"

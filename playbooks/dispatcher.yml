@@ -97,3 +97,33 @@
           not yet in the v19.2 bundle.
       loop: "{{ technique_ids | reject('in', attack_map.techniques) | list }}"
       when: technique_ids | reject('in', attack_map.techniques) | list | length > 0
+
+    - name: Save enforcement results for report
+      ansible.builtin.set_fact:
+        enforcement_result:
+          event_source: "{{ event_source | default('unknown') }}"
+          source_host: "{{ source_host | default(inventory_hostname) }}"
+          alert_rule: "{{ alert_rule | default('') }}"
+          alert_priority: "{{ alert_priority | default('') }}"
+          technique_ids: "{{ technique_ids }}"
+          resolved_mitigations: "{{ resolved_mitigations }}"
+          enforce_mode: "{{ enforce_mode }}"
+        cacheable: true
+
+# ── Report generation on rhel02 ──
+- name: Generate enforcement report
+  hosts: report_host
+  gather_facts: true
+
+  tasks:
+    - name: Include enforcement_report role
+      ansible.builtin.include_role:
+        name: enforcement_report
+      vars:
+        report_event_source: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['event_source'] | default('unknown') }}"
+        report_source_host: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['source_host'] | default('unknown') }}"
+        report_alert_rule: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['alert_rule'] | default('') }}"
+        report_alert_priority: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['alert_priority'] | default('') }}"
+        report_technique_ids: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['technique_ids'] | default([]) }}"
+        report_resolved_mitigations: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['resolved_mitigations'] | default([]) }}"
+        report_enforce_mode: "{{ hostvars[source_host | default(groups['all'][0])]['enforcement_result']['enforce_mode'] | default('full') }}"
