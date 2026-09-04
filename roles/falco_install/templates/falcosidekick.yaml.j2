@@ -2,23 +2,21 @@
 # Template: falco_mitre.ics_enforce / falco_install
 
 debug: false
+
 customfields:
   environment: ot
   managed_by: falco_mitre_ics_enforce
 
-outputs:
-  webhook:
-    address: "{{ falcosidekick_eda_url }}"
-    method: POST
-    minimumpriority: "{{ falcosidekick_min_priority }}"
-    checkcert: {{ falcosidekick_verify_ssl | lower }}
-    headers:
-      Content-Type: application/json
-      Authorization: "{{ falcosidekick_eda_token }}"
-    customHeaders:
-      X-ATT-CK-Domain: ics
-      X-Source: falcosidekick
+webhook:
+  address: "{{ falcosidekick_eda_url }}"
+  method: POST
+  minimumpriority: "{{ falcosidekick_min_priority }}"
+  checkcert: {{ falcosidekick_verify_ssl | lower }}
+  customheaders:
+    Authorization: "{{ falcosidekick_eda_token }}"
+    X-ATT-CK-Domain: ics
+    X-Source: falcosidekick
 
-  stdout:
-    enabled: true
-    outputformat: json
+stdout:
+  enabled: true
+  outputformat: json

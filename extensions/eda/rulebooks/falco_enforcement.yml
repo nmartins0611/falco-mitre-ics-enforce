@@ -23,10 +23,10 @@
     - name: Falco critical alert — enforce mitigations
       condition: >-
         event.payload.priority is defined
-        and event.payload.priority in ["Critical", "Error"]
+        and event.payload.priority in ["Critical", "Error", "CRITICAL", "ERROR"]
         and event.payload.tags is defined
         and event.payload.source is defined
-        and event.payload.source == "syscalls"
+        and event.payload.source in ["syscall", "syscalls"]
       action:
         run_job_template:
           name: "FALCO_MITRE — Enforce"
@@ -44,10 +44,10 @@
     - name: Falco warning alert — deploy detection rules
       condition: >-
         event.payload.priority is defined
-        and event.payload.priority == "Warning"
+        and event.payload.priority in ["Warning", "WARNING"]
         and event.payload.tags is defined
         and event.payload.source is defined
-        and event.payload.source == "syscalls"
+        and event.payload.source in ["syscall", "syscalls"]
       action:
         run_job_template:
           name: "FALCO_MITRE — Enforce"
