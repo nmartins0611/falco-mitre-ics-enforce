@@ -43,6 +43,7 @@
   ansible.builtin.dnf:
     name: fapolicyd
     state: present
+  register: m0938_fapolicyd_install
   when: m0938_fapolicyd_enabled
 
 - name: Check if fapolicyd.conf exists
@@ -101,4 +102,6 @@
     enabled: true
     state: started
     daemon_reload: true
-  when: m0938_fapolicyd_enabled
+  when:
+    - m0938_fapolicyd_enabled
+    - m0938_fapolicyd_conf.stat.exists
