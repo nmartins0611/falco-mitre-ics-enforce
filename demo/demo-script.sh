@@ -250,7 +250,7 @@ echo ""
 cd "$(dirname "$0")/.."
 ansible-playbook -i inventory/hosts.yml playbooks/deploy_report.yml \
   -e "{\"report_event_source\":\"falcosidekick\",\"report_source_host\":\"${RHEL01}\",\"report_alert_rule\":\"Script interpreter invoked on OT host\",\"report_alert_priority\":\"ERROR\",\"report_technique_ids\":[\"T0853\",\"T0807\"],\"report_resolved_mitigations\":[{\"id\":\"M0938\",\"name\":\"Execution Prevention\",\"class\":\"enforce\",\"role_name\":\"m0938_execution_prevention\"},{\"id\":\"M0942\",\"name\":\"Disable or Remove Feature or Program\",\"class\":\"enforce\",\"role_name\":\"m0942_disable_unused_services\"}],\"report_event_status\":\"completed\"}" \
-  2>&1 | grep -E 'ok=|changed=|failed='
+  2>&1 | tail -5 || true
 
 echo ""
 echo -e "  ${GREEN}✓ Dashboard updated${NC}"
