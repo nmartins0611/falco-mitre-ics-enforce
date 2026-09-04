@@ -33,7 +33,7 @@
           organization: Default
           job_args:
             extra_vars:
-              technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
+              technique_ids: "{{ event.payload.tags }}"
               source_host: "{{ event.payload.hostname }}"
               alert_rule: "{{ event.payload.rule }}"
               alert_priority: "{{ event.payload.priority }}"
@@ -54,7 +54,7 @@
           organization: Default
           job_args:
             extra_vars:
-              technique_ids: "{{ event.payload.tags | select('match', '^T[0-9]+') | list }}"
+              technique_ids: "{{ event.payload.tags }}"
               source_host: "{{ event.payload.hostname }}"
               alert_rule: "{{ event.payload.rule }}"
               alert_priority: "{{ event.payload.priority }}"
