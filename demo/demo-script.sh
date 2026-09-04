@@ -93,7 +93,7 @@ echo -e "  The ${BOLD}attack_map.yml${NC} is generated from the ICS ATT&CK STIX 
 echo -e "  Each technique is classified: ${GREEN}enforce${NC} | ${YELLOW}partial${NC} | ${BLUE}detect${NC} | ${DIM}skip${NC}"
 echo ""
 
-run "python3 -c \"
+python3 << 'PYEOF'
 import yaml
 with open('data/attack_map.yml') as f:
     data = yaml.safe_load(f)
@@ -107,35 +107,35 @@ print(f'  Enforceable: {e}  (have at least one Ansible role)')
 print(f'  Partial:     {p}  (host slice only)')
 print(f'  Detect:      {d}  (Falco/auditd only)')
 print(f'  Skip:        {s}  (physical/PLC/process)')
-\""
+PYEOF
 pause
 
 # ─────────────────────────────────────────────────────────────────────
 narrate "Technique Deep Dive — T0853 Scripting" \
     "Trace the mapping chain: technique → mitigations → Ansible roles."
 
-run "python3 -c \"
+python3 << 'PYEOF'
 import yaml
 with open('data/attack_map.yml') as f:
     data = yaml.safe_load(f)
 t = data['techniques']['T0853']
-print(f'  Technique:  T0853 — {t[\"name\"]}')
-print(f'  Platforms:  {t[\"platforms\"]}')
+print(f'  Technique:  T0853 -- {t["name"]}')
+print(f'  Platforms:  {t["platforms"]}')
 print()
 for m in t.get('mitigations', []):
     cls = m['class'].upper()
-    role = m.get('role_name', '—')
-    print(f'  {m[\"id\"]} {m[\"name\"]:45s} [{cls:7s}]  role: {role}')
-    print(f'         mechanism: {m.get(\"mechanism\", \"—\")}')
+    role = m.get('role_name', '-')
+    print(f'  {m["id"]} {m["name"]:45s} [{cls:7s}]  role: {role}')
+    print(f'         mechanism: {m.get("mechanism", "-")}')
     print()
-\""
+PYEOF
 pause
 
 # ─────────────────────────────────────────────────────────────────────
 narrate "Verify Falco is Running" \
     "Falco monitors syscalls on OT hosts in real-time using modern eBPF."
 
-run "ssh ${SSH_OPTS} root@${RHEL01} 'echo \"Host: \$(hostname)\"; echo \"Falco:        \$(systemctl is-active falco-modern-bpf)\"; echo \"Falcosidekick: \$(systemctl is-active falcosidekick)\"; echo \"\"; echo \"Loaded rules:\"; falco --list-fields 2>/dev/null | head -1 || echo \"  (falco running as service)\"; ls /etc/falco/rules.d/ 2>/dev/null'"
+ssh ${SSH_OPTS} root@${RHEL01} 'echo "Host: $(hostname)"; echo "Falco:         $(systemctl is-active falco-modern-bpf)"; echo "Falcosidekick: $(systemctl is-active falcosidekick)"; echo ""; echo "Custom rules:"; ls /etc/falco/rules.d/ 2>/dev/null'
 pause
 
 # ─────────────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ echo -e "  ${RED}${BOLD}⚠  Simulating adversary activity on ${RHEL01}${NC}"
 echo -e "  ${DIM}Running: su - testuser -c 'python3 -c \"import os; os.system(\\\"id\\\")\"'${NC}"
 echo ""
 
-run "ssh ${SSH_OPTS} root@${RHEL01} \"su - testuser -s /bin/bash -c 'python3 -c \\\"import os; os.system(\\\\\\\"id\\\\\\\")\\\"'\""
+ssh ${SSH_OPTS} root@${RHEL01} 'su - testuser -s /bin/bash -c '\''python3 -c "import os; os.system(\"id\")"'\'''
 
 echo -e "  ${DIM}Waiting 3 seconds for Falco to process...${NC}"
 sleep 3
@@ -163,25 +163,26 @@ pause
 narrate "Falco Alert Fires" \
     "Falco detected the suspicious script interpreter invocation."
 
-run "ssh ${SSH_OPTS} root@${RHEL01} \"journalctl -u falco-modern-bpf --no-pager -n 1 --since '30 sec ago' --output=cat 2>/dev/null | python3 -c \\\"
+ssh ${SSH_OPTS} root@${RHEL01} 'journalctl -u falco-modern-bpf --no-pager -n 1 --since "30 sec ago" --output=cat 2>/dev/null' \
+  | python3 -c "
 import sys, json
 for line in sys.stdin:
     d = json.loads(line.strip())
-    print(f'  Rule:     {d[\\\\\\\"rule\\\\\\\"]}')
-    print(f'  Priority: {d[\\\\\\\"priority\\\\\\\"]}')
-    print(f'  Tags:     {d[\\\\\\\"tags\\\\\\\"]}')
-    print(f'  Host:     {d[\\\\\\\"hostname\\\\\\\"]}')
-    print(f'  User:     {d[\\\\\\\"output_fields\\\\\\\"][\\\\\\\"user.name\\\\\\\"]}')
-    print(f'  Command:  {d[\\\\\\\"output_fields\\\\\\\"][\\\\\\\"proc.cmdline\\\\\\\"]}')
+    print(f'  Rule:     {d[\"rule\"]}')
+    print(f'  Priority: {d[\"priority\"]}')
+    print(f'  Tags:     {d[\"tags\"]}')
+    print(f'  Host:     {d[\"hostname\"]}')
+    print(f'  User:     {d[\"output_fields\"][\"user.name\"]}')
+    print(f'  Command:  {d[\"output_fields\"][\"proc.cmdline\"]}')
     break
-\\\"\""
+"
 pause
 
 # ─────────────────────────────────────────────────────────────────────
 narrate "Falcosidekick Forwards to EDA" \
     "Falcosidekick sends the alert as a webhook to the AAP Event-Driven Ansible event stream."
 
-run "ssh ${SSH_OPTS} root@${RHEL01} \"journalctl -u falcosidekick --no-pager -n 1 --since '30 sec ago' --output=cat 2>/dev/null\""
+ssh ${SSH_OPTS} root@${RHEL01} 'journalctl -u falcosidekick --no-pager -n 1 --since "30 sec ago" --output=cat 2>/dev/null'
 
 echo -e "  ${GREEN}✓ Webhook delivered (HTTP 200) to EDA event stream${NC}"
 echo ""
@@ -201,21 +202,21 @@ echo -e "    event_source:   falcosidekick"
 echo -e "    alert_priority: ERROR"
 echo ""
 
-run "python3 -c \"
+python3 << 'PYEOF'
 import yaml
 with open('data/attack_map.yml') as f:
     data = yaml.safe_load(f)
 techniques = ['T0853', 'T0807']
 seen = set()
 print('  Technique         Mitigation                   Class     Role')
-print('  ─────────────     ───────────────────────────   ───────   ──────────────────────────────')
+print('  ---------------   ---------------------------  -------   --------------------------------')
 for tid in techniques:
     t = data['techniques'].get(tid, {})
     for m in (t.get('mitigations') or []):
         if m['class'] in ('enforce', 'partial') and m['id'] not in seen:
             seen.add(m['id'])
-            print(f'  {tid:15s}  →  {m[\"id\"]} {m[\"name\"]:24s}  {m[\"class\"]:8s}  {m.get(\"role_name\", \"—\")}')
-\""
+            print(f'  {tid:15s}  ->  {m["id"]} {m["name"]:24s}  {m["class"]:8s}  {m.get("role_name", "-")}')
+PYEOF
 
 echo -e "  ${GREEN}✓ Resolved 2 enforce-class roles to execute${NC}"
 pause
@@ -234,7 +235,7 @@ echo -e "    • rpcbind, nfs-server → disabled"
 echo -e "    • ctrl-alt-del.target, debug-shell.service → masked"
 echo ""
 
-run "ssh ${SSH_OPTS} root@${RHEL01} 'echo \"  SELinux:    \$(getenforce)\"; echo \"  fapolicyd:  \$(systemctl is-active fapolicyd)\"; echo \"  bluetooth:  \$(systemctl is-enabled bluetooth 2>/dev/null || echo disabled)\"; echo \"  cups:       \$(systemctl is-enabled cups 2>/dev/null || echo disabled)\"; echo \"  debug-shell: \$(systemctl is-enabled debug-shell.service 2>/dev/null || echo masked)\"'"
+ssh ${SSH_OPTS} root@${RHEL01} 'echo "  SELinux:     $(getenforce)"; echo "  fapolicyd:   $(systemctl is-active fapolicyd)"; echo "  bluetooth:   $(systemctl is-enabled bluetooth 2>/dev/null || echo disabled)"; echo "  cups:        $(systemctl is-enabled cups 2>/dev/null || echo disabled)"; echo "  debug-shell: $(systemctl is-enabled debug-shell.service 2>/dev/null || echo masked)"'
 
 echo -e "  ${GREEN}✓ Host hardened — mitigations enforced${NC}"
 pause
