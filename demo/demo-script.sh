@@ -48,6 +48,7 @@ pause() {
     if [[ "$AUTO" != "--auto" ]]; then
         echo -e "${YELLOW}  ▸ Press Enter to continue...${NC}"
         read -r
+        clear
     else
         sleep 2
     fi
